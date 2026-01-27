@@ -3,6 +3,30 @@
 import pandas as pd
 
 
+def _clean_list_columns(df: pd.DataFrame, columns: list = None) -> pd.DataFrame:
+    """
+    Clean specified columns by converting lists to their first element.
+
+    Parameters:
+    df (pd.DataFrame): Input dataframe.
+    columns (list): List of column names to clean. If None, cleans all object columns.
+
+    Returns:
+    pd.DataFrame: Dataframe with list values converted to first element.
+    """
+    df = df.copy()
+    cols_to_clean = columns if columns else [
+        col for col in df.columns if df[col].dtype == 'object']
+
+    for col in cols_to_clean:
+        if col in df.columns:
+            df[col] = df[col].apply(
+                lambda x: (x[0] if isinstance(x, list) and len(
+                    x) > 0 else ('' if isinstance(x, list) else x))
+            )
+    return df
+
+
 def create_country_table(df: pd.DataFrame) -> pd.DataFrame:
     """Pulls unique country data from extracted dataframe to a country table dataframe with country_id and country."""
     country_df = df[['country']].drop_duplicates().reset_index(drop=True)
@@ -43,7 +67,11 @@ def create_plant_table(df: pd.DataFrame) -> pd.DataFrame:
         location_df[['location_id', 'city']], on='city', how='left')
 
     plant_df = df[['scientific_name', 'common_name', 'city',
-                   'country']].drop_duplicates().reset_index(drop=True)
+                   'country']].reset_index(drop=True)
+    # Clean list values from scientific_name before drop_duplicates
+    plant_df = _clean_list_columns(plant_df, columns=['scientific_name'])
+    plant_df = plant_df.drop_duplicates().reset_index(drop=True)
+
     plant_df = plant_df.merge(location_merge[['city', 'country', 'location_id']], on=[
                               'city', 'country'], how='left')
     plant_df['plant_id'] = plant_df.index + 1
@@ -56,8 +84,13 @@ def create_record_table(df: pd.DataFrame) -> pd.DataFrame:
     """Create record table dataframe with id, plant_id, recording_taken, moisture, temperature, last_watered, and botanist_id. Plant_id and botanist_id are foreign keys referencing the plant and botanist tables respectively."""
     plant_df = create_plant_table(df)
     botanist_df = create_botanist_table(df)
+
+    # Clean the dataframe to remove list values from key columns
     record_df = df[['scientific_name', 'botanist_name', 'recording_taken',
                     'moisture', 'temperature', 'last_watered']].reset_index(drop=True)
+    record_df = _clean_list_columns(
+        record_df, columns=['scientific_name', 'botanist_name'])
+
     record_df = record_df.merge(plant_df, on='scientific_name', how='left')
     record_df = record_df.merge(botanist_df, on='botanist_name', how='left')
     record_df['id'] = record_df.index + 1
