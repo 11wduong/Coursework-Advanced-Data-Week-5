@@ -12,31 +12,18 @@ def combine_tables(country_df: pd.DataFrame, botanist_df: pd.DataFrame,
     df = df.merge(botanist_df, on='botanist_id', how='left')
     return df
 
+def calculate_averages(df: pd.DataFrame) -> pd.DataFrame:
+    """Calculates average temperature and moisture for each plant for the 24 hours and has day column to record date."""
+    df['recording_taken'] = pd.to_datetime(df['recording_taken'])
+    df['day'] = df['recording_taken'].dt.date
 
+    avg_df = df.groupby(['plant_id', 'day']).agg(
+        avg_temperature=('temperature', 'mean'),
+        avg_moisture=('moisture', 'mean')
+    ).reset_index()
 
-def extract_data (df: pd.DataFrame) -> pd.DataFrame:
-    """Extracts only rows that are have anomalous data or have outliers in the temperature and soil moisture columns.
+    return avg_df
     
-    Uses IQR method to identify outliers.
-    """
-    Q1 = df[['temperature', 'moisture']].quantile(0.25)
-    Q3 = df[['temperature', 'moisture']].quantile(0.75)
-    IQR = Q3 - Q1
-
-    condition = (
-        (df['temperature'] < (Q1['temperature'] - 1.5 * IQR['temperature'])) |
-        (df['temperature'] > (Q3['temperature'] + 1.5 * IQR['temperature'])) |
-        (df['moisture'] < (Q1['moisture'] - 1.5 * IQR['moisture'])) |
-        (df['moisture'] > (Q3['moisture'] + 1.5 * IQR['moisture'])) |
-        (df['last_watered'].isnull()) |
-        (df['botanist_name'].isnull()) |
-        (df['email'].isnull())
-    )
-
-    df = df[condition].reset_index(drop=True)
-    return df
-    
-
 def transform_to_parquet(df: pd.DataFrame, file_path: str) -> None:
     """Transforms the given DataFrame to a Parquet file at the specified file path."""
     df.to_parquet(file_path, index=False)
