@@ -63,27 +63,58 @@ resource "aws_lambda_function" "plant_load" {
   }
 }
 
-# EventBridge rule to trigger Lambda every minute
-resource "aws_cloudwatch_event_rule" "every_minute" {
-  name                = "c21-boxen-plant-load-every-minute"
-  description         = "Trigger plant load pipeline every minute"
+# EventBridge Scheduler to trigger Lambda every minute
+resource "aws_scheduler_schedule" "plant_load_schedule" {
+  name       = "c21-boxen-plant-load-schedule"
+  group_name = "default"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
   schedule_expression = "rate(1 minute)"
+
+  target {
+    arn      = aws_lambda_function.plant_load.arn
+    role_arn = aws_iam_role.scheduler_role.arn
+  }
 }
 
-# EventBridge target
-resource "aws_cloudwatch_event_target" "lambda_target" {
-  rule      = aws_cloudwatch_event_rule.every_minute.name
-  target_id = "plant-load-lambda"
-  arn       = aws_lambda_function.plant_load.arn
+# IAM role for EventBridge Scheduler
+resource "aws_iam_role" "scheduler_role" {
+  name = "c21-boxen-eventbridge-scheduler-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "scheduler.amazonaws.com"
+        }
+      }
+    ]
+  })
 }
 
-# Permission for EventBridge to invoke Lambda
-resource "aws_lambda_permission" "allow_eventbridge" {
-  statement_id  = "AllowExecutionFromEventBridge"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.plant_load.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.every_minute.arn
+# IAM policy for Scheduler to invoke Lambda
+resource "aws_iam_role_policy" "scheduler_lambda_policy" {
+  name = "c21-boxen-scheduler-lambda-policy"
+  role = aws_iam_role.scheduler_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:InvokeFunction"
+        ]
+        Resource = aws_lambda_function.plant_load.arn
+      }
+    ]
+  })
 }
 
 # Outputs
