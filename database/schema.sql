@@ -16,7 +16,7 @@ CREATE TABLE Location (
 
 -- Create Plant table
 CREATE TABLE Plant (
-    plant_id SMALLINT PRIMARY KEY IDENTITY(1,1),
+    plant_id SMALLINT PRIMARY KEY,
     scientific_name VARCHAR(255),
     common_name VARCHAR(255),
     location_id BIGINT,
