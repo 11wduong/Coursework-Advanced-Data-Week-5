@@ -1,6 +1,6 @@
 -- Create Country table
 CREATE TABLE Country (
-    country_id BIGINT PRIMARY KEY,
+    country_id SMALLINT PRIMARY KEY,
     country VARCHAR(255)
 );
 
@@ -8,7 +8,7 @@ CREATE TABLE Country (
 CREATE TABLE Location (
     location_id BIGINT PRIMARY KEY,
     city VARCHAR(255),
-    country_id BIGINT,
+    country_id SMALLINT,
     lat FLOAT,
     long FLOAT,
     FOREIGN KEY (country_id) REFERENCES Country(country_id)
@@ -16,7 +16,7 @@ CREATE TABLE Location (
 
 -- Create Plant table
 CREATE TABLE Plant (
-    plant_id BIGINT PRIMARY KEY,
+    plant_id SMALLINT PRIMARY KEY,
     scientific_name VARCHAR(255),
     common_name VARCHAR(255),
     location_id BIGINT,
@@ -34,7 +34,7 @@ CREATE TABLE Botanist (
 -- Create Record table
 CREATE TABLE Record (
     id BIGINT PRIMARY KEY,
-    plant_id BIGINT,
+    plant_id SMALLINT,
     recording_taken DATE,
     moisture FLOAT,
     temperature FLOAT,
