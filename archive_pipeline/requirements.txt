@@ -1,0 +1,5 @@
+pytest
+pandas
+ipykernel
+pymssql
+python-dotenv

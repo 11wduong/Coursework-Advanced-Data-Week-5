@@ -3,6 +3,9 @@
 __pycache__
 .venv
 *.csv
+<<<<<<< HEAD
+*.parquet
+=======
 
 # Terraform
 .terraform/
@@ -14,3 +17,4 @@ terraform.tfstate.backup
 *.tfplan.*
 .terraformrc
 terraform.rc
+>>>>>>> 0d51c5058f96241ed7a8facc1c34e1b6189b4e37
