@@ -35,10 +35,10 @@ CREATE TABLE Botanist (
 CREATE TABLE Record (
     id BIGINT PRIMARY KEY,
     plant_id SMALLINT,
-    recording_taken DATE,
+    recording_taken DATETIME,
     moisture FLOAT,
     temperature FLOAT,
-    last_watered DATE,
+    last_watered DATETIME,
     botanist_id SMALLINT,
     FOREIGN KEY (plant_id) REFERENCES Plant(plant_id),
     FOREIGN KEY (botanist_id) REFERENCES Botanist(botanist_id)
