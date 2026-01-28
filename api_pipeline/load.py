@@ -8,17 +8,6 @@ import pandas as pd
 import pyodbc
 
 
-def _get_credentials_from_secrets_manager() -> dict:
-    """Fetch database credentials from AWS Secrets Manager."""
-    import boto3
-    secret_name = os.getenv('SECRET_NAME')
-    region = os.getenv('AWS_REGION', 'eu-west-2')
-
-    client = boto3.client('secretsmanager', region_name=region)
-    response = client.get_secret_value(SecretId=secret_name)
-    return json.loads(response['SecretString'])
-
-
 def get_db_connection() -> pyodbc.Connection:
     """Create and return a pyodbc connection for Microsoft SQL Server."""
     host = os.getenv('DB_HOST')
