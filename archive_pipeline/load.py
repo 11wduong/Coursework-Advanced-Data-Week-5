@@ -9,7 +9,7 @@ import pandas as pd
 
 def get_s3_client():
     """Create and return an S3 client."""
-    return boto3.client('s3', region_name='eu-west-2')
+    return boto3.client('s3', region_name=os.getenv('REGION_NAME'))
 
 
 def upload_to_s3(df: pd.DataFrame) -> str:
