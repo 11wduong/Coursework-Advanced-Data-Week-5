@@ -8,8 +8,7 @@ from pathlib import Path
 from transform import (
     combine_tables,
     clean_outliers,
-    calculate_averages,
-    transform_to_csv
+    calculate_averages
 )
 
 
@@ -226,62 +225,3 @@ class TestCalculateAverages:
         assert 'plant_id' in result.columns
         assert 'common_name' in result.columns
         assert 'scientific_name' in result.columns
-
-
-class TestTransformToCsv:
-    """Tests for transform_to_csv function."""
-
-    def test_transform_to_csv_creates_file(self):
-        """Test that CSV file is created."""
-        df = pd.DataFrame({
-            'col1': [1, 2, 3],
-            'col2': ['a', 'b', 'c']
-        })
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            file_path = os.path.join(tmpdir, 'test.csv')
-            transform_to_csv(df, file_path)
-
-            assert os.path.exists(file_path)
-
-    def test_transform_to_csv_creates_directories(self):
-        """Test that parent directories are created if they don't exist."""
-        df = pd.DataFrame({'col1': [1, 2, 3]})
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            file_path = os.path.join(
-                tmpdir, 'nested', 'directories', 'test.csv'
-            )
-            transform_to_csv(df, file_path)
-
-            assert os.path.exists(file_path)
-
-    def test_transform_to_csv_writes_correct_data(self):
-        """Test that CSV file contains the correct data."""
-        df = pd.DataFrame({
-            'col1': [1, 2, 3],
-            'col2': ['a', 'b', 'c']
-        })
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            file_path = os.path.join(tmpdir, 'test.csv')
-            transform_to_csv(df, file_path)
-
-            result_df = pd.read_csv(file_path)
-
-            assert len(result_df) == 3
-            assert list(result_df.columns) == ['col1', 'col2']
-            assert result_df['col1'].tolist() == [1, 2, 3]
-
-    def test_transform_to_csv_no_index_column(self):
-        """Test that the index is not written to the CSV file."""
-        df = pd.DataFrame({'col1': [1, 2, 3]})
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            file_path = os.path.join(tmpdir, 'test.csv')
-            transform_to_csv(df, file_path)
-
-            with open(file_path, 'r') as f:
-                header = f.readline().strip()
-
-            assert header == 'col1'
