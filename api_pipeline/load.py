@@ -6,9 +6,6 @@ from typing import List, Tuple
 
 import pandas as pd
 import pyodbc
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 def _get_credentials_from_secrets_manager() -> dict:
@@ -31,7 +28,7 @@ def get_db_connection() -> pyodbc.Connection:
     password = os.getenv('DB_PASSWORD')
 
     connection_string = (
-        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+        f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={host};PORT={port};DATABASE={name};UID={user};PWD={password};TrustServerCertificate=yes;"
         f"SERVER={host},{port};"
         f"DATABASE={name};"
         f"UID={user};"
