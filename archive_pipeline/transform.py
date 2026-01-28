@@ -15,10 +15,25 @@ def combine_tables(country_df: pd.DataFrame, botanist_df: pd.DataFrame,
 
 
 def clean_table(df: pd.DataFrame) -> pd.DataFrame:
-    """Cleans the combined dataframe by removing duplicates and handling missing values."""
-    df = df.drop_duplicates()
-    df = df.dropna(subset=['temperature', 'moisture', 'recording_taken'])
-    return df
+    """Drops rows that are outliers from IQR method and handles missing values."""
+    df = df.dropna(subset=['temperature', 'moisture'])
+
+    Q1_temp = df['temperature'].quantile(0.25)
+    Q3_temp = df['temperature'].quantile(0.75)
+    IQR_temp = Q3_temp - Q1_temp
+
+    Q1_moisture = df['moisture'].quantile(0.25)
+    Q3_moisture = df['moisture'].quantile(0.75)
+    IQR_moisture = Q3_moisture - Q1_moisture
+
+    filtered_df = df[
+        (df['temperature'] >= (Q1_temp - 1.5 * IQR_temp)) &
+        (df['temperature'] <= (Q3_temp + 1.5 * IQR_temp)) &
+        (df['moisture'] >= (Q1_moisture - 1.5 * IQR_moisture)) &
+        (df['moisture'] <= (Q3_moisture + 1.5 * IQR_moisture))
+    ]
+
+    return filtered_df.reset_index(drop=True)
 
 
 def calculate_averages(df: pd.DataFrame) -> pd.DataFrame:
@@ -36,6 +51,23 @@ def calculate_averages(df: pd.DataFrame) -> pd.DataFrame:
 
 def create_outlier_df(df: pd.DataFrame) -> pd.DataFrame:
     """Creates a dataframe containing outlier records based on temperature and moisture thresholds based on IQR method."""
+    Q1_temp = df['temperature'].quantile(0.25)
+    Q3_temp = df['temperature'].quantile(0.75)
+    IQR_temp = Q3_temp - Q1_temp
+
+    Q1_moisture = df['moisture'].quantile(0.25)
+    Q3_moisture = df['moisture'].quantile(0.75)
+    IQR_moisture = Q3_moisture - Q1_moisture
+
+    temp_outliers = df[(df['temperature'] < (Q1_temp - 1.5 * IQR_temp))
+                       | (df['temperature'] > (Q3_temp + 1.5 * IQR_temp))]
+    moisture_outliers = df[(df['moisture'] < (Q1_moisture - 1.5 * IQR_moisture))
+                           | (df['moisture'] > (Q3_moisture + 1.5 * IQR_moisture))]
+
+    outlier_df = pd.concat([temp_outliers, moisture_outliers]
+                           ).drop_duplicates().reset_index(drop=True)
+
+    return outlier_df
 
 
 def transform_to_csv(df: pd.DataFrame, file_path: str) -> None:
