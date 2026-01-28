@@ -57,6 +57,17 @@ def clean_outliers(df: pd.DataFrame) -> tuple:
     return pd.concat(cleaned_dfs, ignore_index=True), outlier_counts
 
 
+def add_outlier_columns(avg_df: pd.DataFrame, outlier_counts: dict) -> pd.DataFrame:
+    """Adds temperature_outliers and moisture_outliers columns to the average dataframe."""
+    avg_df['temperature_outliers'] = avg_df['plant_id'].map(
+        lambda pid: outlier_counts.get(pid, {}).get('temperature', 0)
+    )
+    avg_df['moisture_outliers'] = avg_df['plant_id'].map(
+        lambda pid: outlier_counts.get(pid, {}).get('moisture', 0)
+    )
+    return avg_df
+
+
 def calculate_averages(original_df: pd.DataFrame, cleaned_df: pd.DataFrame, outlier_counts: dict) -> pd.DataFrame:
     """Calculates average temperature and moisture for each plant.
     Averages are rounded to 2 decimal places.
@@ -68,13 +79,7 @@ def calculate_averages(original_df: pd.DataFrame, cleaned_df: pd.DataFrame, outl
         avg_moisture=('moisture', 'mean')
     ).reset_index()
 
-    # Add temperature and moisture outlier counts
-    avg_df['temperature_outliers'] = avg_df['plant_id'].map(
-        lambda pid: outlier_counts.get(pid, {}).get('temperature', 0)
-    )
-    avg_df['moisture_outliers'] = avg_df['plant_id'].map(
-        lambda pid: outlier_counts.get(pid, {}).get('moisture', 0)
-    )
+    avg_df = add_outlier_columns(avg_df, outlier_counts)
 
     avg_df['avg_temperature'] = avg_df['avg_temperature'].round(2)
     avg_df['avg_moisture'] = avg_df['avg_moisture'].round(2)
