@@ -127,3 +127,18 @@ output "lambda_function_name" {
   description = "Lambda function name"
   value       = aws_lambda_function.plant_load.function_name
 }
+
+# S3 bucket for daily plant summaries
+resource "aws_s3_bucket" "plant_archive" {
+  bucket = "c21-boxen-botanical-archive"
+
+  tags = {
+    Name        = "c21-boxen-botanical-archive"
+    Environment = "production"
+  }
+}
+
+output "s3_bucket_name" {
+  description = "S3 bucket name for plant summaries"
+  value       = aws_s3_bucket.plant_archive.id
+}
