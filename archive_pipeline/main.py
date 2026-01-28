@@ -73,7 +73,7 @@ def handler(event, context):
 
         return {
             'statusCode': 200,
-            'body': f'Success: Uploaded to {s3_uri}, deleted {rows_deleted} records'
+            'body': f'Success: Uploaded to {s3_uri}, deleted {0} records'
         }
 
     except Exception as e:
