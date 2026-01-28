@@ -3,3 +3,5 @@ pandas
 python-dotenv
 pytest
 pymssql
+pyodbc
+boto3
