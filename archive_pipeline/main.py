@@ -12,8 +12,7 @@ def cleanup_old_records(conn):
     """Delete all records from the Record table."""
     cursor = conn.cursor()
 
-    schema = os.getenv('DB_SCHEMA', 'gamma')
-    query = f"DELETE FROM {schema}.Record"
+    query = "DELETE FROM Record"
 
     cursor.execute(query)
     conn.commit()
@@ -21,7 +20,7 @@ def cleanup_old_records(conn):
     rows_deleted = cursor.rowcount
     cursor.close()
 
-    print(f"✓ Deleted {rows_deleted} records from {schema}.Record table")
+    print(f"✓ Deleted {rows_deleted} records from Record table")
     return rows_deleted
 
 
@@ -73,7 +72,7 @@ def handler(event, context):
 
         return {
             'statusCode': 200,
-            'body': f'Success: Uploaded to {s3_uri}, deleted {0} records'
+            'body': f'Success: Uploaded to {s3_uri}, deleted {rows_deleted} records'
         }
 
     except Exception as e:
