@@ -11,10 +11,6 @@ from transform import (
 )
 from load import (
     get_db_connection,
-    load_country_table,
-    load_botanist_table,
-    load_location_table,
-    load_plant_table,
     load_record_table,
     load_all_master_data
 )
@@ -74,4 +70,6 @@ def handler(event, context) -> dict:
 
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+    load_dotenv()
     handler(None, None)

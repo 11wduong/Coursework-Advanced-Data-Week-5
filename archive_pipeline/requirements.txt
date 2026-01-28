@@ -1,4 +1,5 @@
-pandas
-python-dotenv
 pytest
+pandas
+ipykernel
 pymssql
+python-dotenv
