@@ -1,7 +1,6 @@
 """Transform script"""
 
 import pandas as pd
-from pathlib import Path
 from extract import main
 
 
@@ -81,12 +80,6 @@ def calculate_averages(cleaned_df: pd.DataFrame, outlier_counts: dict) -> pd.Dat
     return avg_df
 
 
-def transform_to_csv(df: pd.DataFrame, file_path: str) -> None:
-    """Transforms the given DataFrame to a CSV file at the specified file path."""
-    Path(file_path).parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(file_path, index=False)
-
-
 if __name__ == "__main__":
     data = main()
     country_df = data['Country']
@@ -99,6 +92,3 @@ if __name__ == "__main__":
                                  location_df, plant_df, record_df)
     cleaned_df, outlier_counts = clean_outliers(combined_df)
     final_avg_df = calculate_averages(cleaned_df, outlier_counts)
-
-    transform_to_csv(
-        final_avg_df, f'output/summary.csv')
