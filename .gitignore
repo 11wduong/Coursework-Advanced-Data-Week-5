@@ -4,4 +4,14 @@ __pycache__
 .venv
 *.csv
 *.parquet
-.DS_Store
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+*.tfplan
+*.tfplan.*
+.terraformrc
+terraform.rc
