@@ -18,6 +18,21 @@ resource "aws_ecr_repository" "lambda_repo" {
   }
 }
 
+# ECR repository for archive pipeline
+resource "aws_ecr_repository" "archive_lambda_repo" {
+  name                 = "c21-boxen-archive-pipeline"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "archive-pipeline"
+    Environment = "production"
+  }
+}
+
 # IAM role for Lambda
 resource "aws_iam_role" "lambda_role" {
   name = "c21-boxen-plant-load-lambda-role"
