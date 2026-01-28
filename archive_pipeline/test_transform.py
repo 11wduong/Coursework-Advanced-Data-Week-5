@@ -175,7 +175,7 @@ class TestCalculateAverages:
         outlier_counts = {1: {'temperature': 0, 'moisture': 0},
                           2: {'temperature': 0, 'moisture': 0}}
 
-        result = calculate_averages(record_df, cleaned_df, outlier_counts)
+        result = calculate_averages(cleaned_df, outlier_counts)
 
         assert len(result) == 2
         assert 'avg_temperature' in result.columns
@@ -190,7 +190,7 @@ class TestCalculateAverages:
         outlier_counts = {1: {'temperature': 0, 'moisture': 0},
                           2: {'temperature': 0, 'moisture': 0}}
 
-        result = calculate_averages(record_df, cleaned_df, outlier_counts)
+        result = calculate_averages(cleaned_df, outlier_counts)
 
         # Check that values have at most 2 decimal places
         for temp in result['avg_temperature']:
@@ -207,7 +207,7 @@ class TestCalculateAverages:
         outlier_counts = {1: {'temperature': 1, 'moisture': 0},
                           2: {'temperature': 0, 'moisture': 1}}
 
-        result = calculate_averages(record_df, cleaned_df, outlier_counts)
+        result = calculate_averages(cleaned_df, outlier_counts)
 
         assert 'temperature_outliers' in result.columns
         assert 'moisture_outliers' in result.columns
@@ -221,7 +221,7 @@ class TestCalculateAverages:
         outlier_counts = {1: {'temperature': 0, 'moisture': 0},
                           2: {'temperature': 0, 'moisture': 0}}
 
-        result = calculate_averages(record_df, cleaned_df, outlier_counts)
+        result = calculate_averages(cleaned_df, outlier_counts)
 
         assert 'plant_id' in result.columns
         assert 'common_name' in result.columns
