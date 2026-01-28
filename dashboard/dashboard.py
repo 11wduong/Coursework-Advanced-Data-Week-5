@@ -43,7 +43,6 @@ def get_db_connection():
     return conn
 
 
-@st.cache_data(ttl=60)
 def load_plant_data():
     """Load all plant information from the database."""
     conn = get_db_connection()
@@ -67,7 +66,6 @@ def load_plant_data():
     return df
 
 
-@st.cache_data(ttl=60)
 def load_latest_readings():
     """Load the most recent readings for all plants."""
     conn = get_db_connection()
@@ -101,7 +99,6 @@ def load_latest_readings():
     return df
 
 
-@st.cache_data(ttl=60)
 def load_plant_history(plant_id, days=7):
     """Load historical readings for a specific plant."""
     conn = get_db_connection()
@@ -122,7 +119,6 @@ def load_plant_history(plant_id, days=7):
     return df
 
 
-@st.cache_data(ttl=60)
 def load_summary_statistics():
     """Load summary statistics for all plants."""
     conn = get_db_connection()
@@ -158,13 +154,6 @@ def main():
             ["Overview", "Real-Time Monitoring",
                 "Plant Details", "Historical Analysis"]
         )
-
-        st.markdown("---")
-        st.header("Filters")
-        auto_refresh = st.checkbox("Auto-refresh (30s)", value=False)
-
-        if auto_refresh:
-            st.rerun()
 
     # Load data
     try:
@@ -261,8 +250,7 @@ def show_overview(stats, latest_readings, plants_df):
     # Recent readings table
     st.subheader("Recent Plant Readings")
     if not latest_readings.empty:
-        # Ensure only one reading per plant (in case of ties, take the first)
-        display_df = latest_readings.drop_duplicates(subset=['plant_id'], keep='first')[[
+        display_df = latest_readings[[
             'plant_id', 'common_name', 'moisture', 'temperature',
             'recording_taken', 'botanist_name'
         ]].copy()
