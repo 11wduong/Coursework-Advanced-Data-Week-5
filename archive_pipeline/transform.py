@@ -2,6 +2,8 @@
 
 import pandas as pd
 
+from extract import main
+
 
 def combine_tables(country_df: pd.DataFrame, botanist_df: pd.DataFrame,
                    location_df: pd.DataFrame, plant_df: pd.DataFrame,
@@ -73,3 +75,20 @@ def create_outlier_df(df: pd.DataFrame) -> pd.DataFrame:
 def transform_to_csv(df: pd.DataFrame, file_path: str) -> None:
     """Transforms the given DataFrame to a CSV file at the specified file path."""
     df.to_csv(file_path, index=False)
+
+
+if __name__ == "__main__":
+    data = main()
+    country_df = data['Country']
+    location_df = data['Location']
+    botanist_df = data['Botanist']
+    plant_df = data['Plant']
+    record_df = data['Record']
+
+    final_avg_df = calculate_averages(clean_table(combine_tables(country_df, botanist_df,
+                                                                 location_df, plant_df, record_df)))
+    outlier_df = create_outlier_df(combine_tables(country_df, botanist_df,
+                                                  location_df, plant_df, record_df)).columns
+
+    transform_to_csv(final_avg_df, 'transformed_average_data.csv')
+    transform_to_csv(outlier_df, 'outlier_data.csv')
