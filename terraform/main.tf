@@ -62,7 +62,7 @@ resource "aws_lambda_function" "plant_load" {
   function_name = "c21-boxen-plant-load-pipeline"
   role          = aws_iam_role.lambda_role.arn
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.lambda_repo.repository_url}:latest"
+  image_uri     = "${aws_ecr_repository.lambda_repo.repository_url}:v4"
   timeout       = 300
   memory_size   = 512
 
@@ -286,4 +286,103 @@ resource "aws_s3_bucket" "plant_archive" {
 output "s3_bucket_name" {
   description = "S3 bucket name for plant summaries"
   value       = aws_s3_bucket.plant_archive.id
+}
+
+# Glue Database
+resource "aws_glue_catalog_database" "plants_db" {
+  name = "c21-boxen-plants-db"
+}
+
+# IAM role for Glue Crawler
+resource "aws_iam_role" "glue_crawler_role" {
+  name = "c21-boxen-glue-crawler-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "glue.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# Attach AWS managed Glue service policy
+resource "aws_iam_role_policy_attachment" "glue_service_policy" {
+  role       = aws_iam_role.glue_crawler_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
+}
+
+# IAM policy for Glue Crawler to read S3
+resource "aws_iam_role_policy" "glue_s3_policy" {
+  name = "c21-boxen-glue-s3-policy"
+  role = aws_iam_role.glue_crawler_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject"
+        ]
+        Resource = [
+          "${aws_s3_bucket.plant_archive.arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.plant_archive.arn
+        ]
+      }
+    ]
+  })
+}
+
+# Glue Crawler
+resource "aws_glue_crawler" "plants_crawler" {
+  name          = "c21-boxen-plants-crawler"
+  role          = aws_iam_role.glue_crawler_role.arn
+  database_name = aws_glue_catalog_database.plants_db.name
+
+  s3_target {
+    path = "s3://${aws_s3_bucket.plant_archive.id}/"
+  }
+
+  schedule = "cron(15 0 * * ? *)"
+
+  schema_change_policy {
+    delete_behavior = "LOG"
+    update_behavior = "UPDATE_IN_DATABASE"
+  }
+}
+
+# Athena Workgroup
+resource "aws_athena_workgroup" "plants_workgroup" {
+  name = "c21-boxen-plants-workgroup"
+
+  configuration {
+    result_configuration {
+      output_location = "s3://${aws_s3_bucket.plant_archive.id}/athena-results/"
+    }
+  }
+}
+
+output "glue_database_name" {
+  description = "Glue database name"
+  value       = aws_glue_catalog_database.plants_db.name
+}
+
+output "athena_workgroup_name" {
+  description = "Athena workgroup name"
+  value       = aws_athena_workgroup.plants_workgroup.name
 }
