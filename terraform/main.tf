@@ -529,6 +529,27 @@ resource "aws_iam_role" "dashboard_execution_role" {
   })
 }
 
+# IAM policy for dashboard execution role to create CloudWatch logs
+resource "aws_iam_role_policy" "dashboard_cloudwatch_logs" {
+  name = "c21-boxen-dashboard-cloudwatch-logs-policy"
+  role = aws_iam_role.dashboard_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "arn:aws:logs:eu-west-2:129033205317:log-group:/ecs/c21-boxen-dashboard:*"
+      }
+    ]
+  })
+}
+
 # Attach execution role policy for ECR and CloudWatch Logs
 resource "aws_iam_role_policy_attachment" "dashboard_execution_policy" {
   role       = aws_iam_role.dashboard_execution_role.name
