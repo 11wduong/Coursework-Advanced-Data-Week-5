@@ -627,6 +627,44 @@ resource "aws_ecs_task_definition" "dashboard" {
   ])
 }
 
+# Security group for dashboard ECS task
+resource "aws_security_group" "dashboard_sg" {
+  name        = "c21-boxen-dashboard-sg"
+  description = "Security group for dashboard ECS task"
+  vpc_id      = "vpc-00e544d2dfe3f7848"
+
+  # Allow outbound HTTPS to reach ECR and other AWS services
+  egress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow HTTPS outbound for ECR, Athena, etc."
+  }
+
+  # Allow all outbound traffic (for database connection, etc.)
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound traffic"
+  }
+
+  # Allow inbound on Streamlit port (if you want to access it)
+  ingress {
+    from_port   = 8501
+    to_port     = 8501
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow Streamlit dashboard access"
+  }
+
+  tags = {
+    Name = "c21-boxen-dashboard-sg"
+  }
+}
+
 # ECS Service
 resource "aws_ecs_service" "dashboard" {
   name            = "c21-boxen-dashboard-service"
@@ -637,10 +675,11 @@ resource "aws_ecs_service" "dashboard" {
 
   network_configuration {
     subnets = [
-      "subnet-00c5753756bd9f245",  # eu-west-2a
-      "subnet-0e34903d9a2ac382e",  # eu-west-2b
-      "subnet-0b2624702047deb8b"   # eu-west-2c
+      "subnet-00c5753756bd9f245",
+      "subnet-0e34903d9a2ac382e",
+      "subnet-0b2624702047deb8b"
     ]
+    security_groups  = [aws_security_group.dashboard_sg.id]
     assign_public_ip = true
   }
 }
