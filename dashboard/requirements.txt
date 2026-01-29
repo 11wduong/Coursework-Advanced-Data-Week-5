@@ -1,6 +1,5 @@
-pytest
+streamlit
 pandas
-ipykernel
+plotly
 pymssql
 python-dotenv
-boto3
