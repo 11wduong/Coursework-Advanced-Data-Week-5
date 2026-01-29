@@ -428,3 +428,208 @@ output "athena_workgroup_name" {
   description = "Athena workgroup name"
   value       = aws_athena_workgroup.plants_workgroup.name
 }
+
+# ECR repository for dashboard
+resource "aws_ecr_repository" "dashboard_repo" {
+  name                 = "c21-boxen-dashboard"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "dashboard"
+    Environment = "production"
+  }
+}
+
+output "dashboard_ecr_repository_url" {
+  description = "Dashboard ECR repository URL"
+  value       = aws_ecr_repository.dashboard_repo.repository_url
+}
+
+# IAM role for ECS task (dashboard)
+resource "aws_iam_role" "dashboard_task_role" {
+  name = "c21-boxen-dashboard-task-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# IAM policy for dashboard to access Athena and S3
+resource "aws_iam_role_policy" "dashboard_athena_s3_policy" {
+  name = "c21-boxen-dashboard-athena-s3-policy"
+  role = aws_iam_role.dashboard_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "athena:StartQueryExecution",
+          "athena:GetQueryExecution",
+          "athena:GetQueryResults",
+          "athena:StopQueryExecution",
+          "athena:GetWorkGroup"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:PutObject"
+        ]
+        Resource = [
+          "${aws_s3_bucket.plant_archive.arn}/*",
+          aws_s3_bucket.plant_archive.arn
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "glue:GetDatabase",
+          "glue:GetTable",
+          "glue:GetPartitions"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# IAM role for ECS task execution (pulling image from ECR)
+resource "aws_iam_role" "dashboard_execution_role" {
+  name = "c21-boxen-dashboard-execution-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# Attach execution role policy for ECR and CloudWatch Logs
+resource "aws_iam_role_policy_attachment" "dashboard_execution_policy" {
+  role       = aws_iam_role.dashboard_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# ECS Task Definition
+resource "aws_ecs_task_definition" "dashboard" {
+  family                   = "c21-boxen-dashboard"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.dashboard_execution_role.arn
+  task_role_arn            = aws_iam_role.dashboard_task_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "dashboard"
+      image     = "${aws_ecr_repository.dashboard_repo.repository_url}:latest"
+      essential = true
+
+      portMappings = [
+        {
+          containerPort = 8501
+          protocol      = "tcp"
+        }
+      ]
+
+      environment = [
+        {
+          name  = "DB_HOST"
+          value = var.db_host
+        },
+        {
+          name  = "DB_PORT"
+          value = var.db_port
+        },
+        {
+          name  = "DB_NAME"
+          value = var.db_name
+        },
+        {
+          name  = "DB_USER"
+          value = var.db_user
+        },
+        {
+          name  = "DB_PASSWORD"
+          value = var.db_password
+        },
+        {
+          name  = "ATHENA_DATABASE"
+          value = aws_glue_catalog_database.plants_db.name
+        },
+        {
+          name  = "S3_BUCKET_NAME"
+          value = aws_s3_bucket.plant_archive.id
+        },
+        {
+          name  = "AWS_DEFAULT_REGION"
+          value = "eu-west-2"
+        }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = "/ecs/c21-boxen-dashboard"
+          "awslogs-region"        = "eu-west-2"
+          "awslogs-stream-prefix" = "dashboard"
+          "awslogs-create-group"  = "true"
+        }
+      }
+    }
+  ])
+}
+
+# ECS Service
+resource "aws_ecs_service" "dashboard" {
+  name            = "c21-boxen-dashboard-service"
+  cluster         = "c21-ecs-cluster"
+  task_definition = aws_ecs_task_definition.dashboard.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets = [
+      "subnet-00c5753756bd9f245",  # eu-west-2a
+      "subnet-0e34903d9a2ac382e",  # eu-west-2b
+      "subnet-0b2624702047deb8b"   # eu-west-2c
+    ]
+    assign_public_ip = true
+  }
+}
+
+output "dashboard_task_definition" {
+  description = "Dashboard ECS task definition ARN"
+  value       = aws_ecs_task_definition.dashboard.arn
+}
+
+output "dashboard_service_name" {
+  description = "Dashboard ECS service name"
+  value       = aws_ecs_service.dashboard.name
+}
