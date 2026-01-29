@@ -18,6 +18,21 @@ resource "aws_ecr_repository" "lambda_repo" {
   }
 }
 
+# ECR repository for archive pipeline
+resource "aws_ecr_repository" "archive_lambda_repo" {
+  name                 = "c21-boxen-archive-pipeline"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "archive-pipeline"
+    Environment = "production"
+  }
+}
+
 # IAM role for Lambda
 resource "aws_iam_role" "lambda_role" {
   name = "c21-boxen-plant-load-lambda-role"
@@ -126,6 +141,136 @@ output "ecr_repository_url" {
 output "lambda_function_name" {
   description = "Lambda function name"
   value       = aws_lambda_function.plant_load.function_name
+}
+
+output "archive_ecr_repository_url" {
+  description = "Archive pipeline ECR repository URL"
+  value       = aws_ecr_repository.archive_lambda_repo.repository_url
+}
+
+output "archive_lambda_function_name" {
+  description = "Archive Lambda function name"
+  value       = aws_lambda_function.archive_pipeline.function_name
+}
+
+# IAM role for Archive Lambda
+resource "aws_iam_role" "archive_lambda_role" {
+  name = "c21-boxen-archive-lambda-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# Attach basic Lambda execution policy to archive Lambda
+resource "aws_iam_role_policy_attachment" "archive_lambda_basic" {
+  role       = aws_iam_role.archive_lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+# IAM policy for Archive Lambda to write to S3
+resource "aws_iam_role_policy" "archive_lambda_s3_policy" {
+  name = "c21-boxen-archive-lambda-s3-policy"
+  role = aws_iam_role.archive_lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:PutObjectAcl"
+        ]
+        Resource = "${aws_s3_bucket.plant_archive.arn}/*"
+      }
+    ]
+  })
+}
+
+# Archive Lambda function
+resource "aws_lambda_function" "archive_pipeline" {
+  function_name = "c21-boxen-archive-pipeline"
+  role          = aws_iam_role.archive_lambda_role.arn
+  package_type  = "Image"
+  image_uri     = "${aws_ecr_repository.archive_lambda_repo.repository_url}:latest"
+  timeout       = 300
+  memory_size   = 512
+
+  environment {
+    variables = {
+      DB_HOST        = var.db_host
+      DB_PORT        = var.db_port
+      DB_USER        = var.db_user
+      DB_PASSWORD    = var.db_password
+      DB_NAME        = var.db_name
+      DB_SCHEMA      = var.db_schema
+      S3_BUCKET_NAME = aws_s3_bucket.plant_archive.id
+    }
+  }
+}
+
+# EventBridge Scheduler for Archive Lambda (runs at 11:59 PM UK time)
+resource "aws_scheduler_schedule" "archive_schedule" {
+  name       = "c21-boxen-archive-schedule"
+  group_name = "default"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  schedule_expression = "cron(59 23 * * ? *)"
+
+  target {
+    arn      = aws_lambda_function.archive_pipeline.arn
+    role_arn = aws_iam_role.archive_scheduler_role.arn
+  }
+}
+
+# IAM role for Archive EventBridge Scheduler
+resource "aws_iam_role" "archive_scheduler_role" {
+  name = "c21-boxen-archive-scheduler-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "scheduler.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# IAM policy for Archive Scheduler to invoke Lambda
+resource "aws_iam_role_policy" "archive_scheduler_lambda_policy" {
+  name = "c21-boxen-archive-scheduler-lambda-policy"
+  role = aws_iam_role.archive_scheduler_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:InvokeFunction"
+        ]
+        Resource = aws_lambda_function.archive_pipeline.arn
+      }
+    ]
+  })
 }
 
 # S3 bucket for daily plant summaries

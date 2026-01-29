@@ -141,6 +141,12 @@ def load_record_table(df: pd.DataFrame, conn: pyodbc.Connection) -> int:
     df = df[['plant_id', 'recording_taken', 'moisture',
              'temperature', 'last_watered', 'botanist_id']]
 
+    # Convert date columns to SQL Server DATETIME format
+    df['recording_taken'] = pd.to_datetime(
+        df['recording_taken']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    df['last_watered'] = pd.to_datetime(
+        df['last_watered']).dt.strftime('%Y-%m-%d %H:%M:%S')
+
     if df.empty:
         print("No valid records after FK lookup")
         return 0
