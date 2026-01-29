@@ -11,8 +11,8 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import pymssql
 from dotenv import load_dotenv
+import queries
 
-# Page configuration
 st.set_page_config(
     page_title="LNMH Plant Monitor",
     page_icon="🌱",
@@ -99,28 +99,8 @@ def load_latest_readings():
     return df
 
 
-def load_plant_history(plant_id, days=7):
-    """Load historical readings for a specific plant."""
-    conn = get_db_connection()
-
-    query = """
-    SELECT 
-        recording_taken,
-        moisture,
-        temperature,
-        last_watered
-    FROM Record
-    WHERE plant_id = %s
-    AND recording_taken >= DATEADD(day, -%s, GETDATE())
-    ORDER BY recording_taken ASC
-    """
-
-    df = pd.read_sql(query, conn, params=(plant_id, days))
-    return df
-
-
 def load_summary_statistics():
-    """Load summary statistics for all plants."""
+    """Load summary statistics for all plants from today's readings."""
     conn = get_db_connection()
 
     query = """
@@ -132,6 +112,7 @@ def load_summary_statistics():
         MIN(recording_taken) as first_reading,
         MAX(recording_taken) as latest_reading
     FROM Record
+    WHERE CAST(recording_taken AS DATE) = CAST(GETDATE() AS DATE)
     """
 
     df = pd.read_sql(query, conn)
@@ -141,12 +122,10 @@ def load_summary_statistics():
 def main():
     """Main dashboard application."""
 
-    # Header
     st.title("🌱 LNMH Plant Health Monitoring Dashboard")
     st.markdown("*Liverpool Natural History Museum - Botanical Conservatory*")
     st.markdown("---")
 
-    # Sidebar
     with st.sidebar:
         st.header("Navigation")
         page = st.radio(
@@ -158,31 +137,27 @@ def main():
         st.markdown("---")
         st.header("📥 Download Historical Data")
 
-        # Date picker for historical data
         selected_date = st.date_input(
             "Select Date",
             value=datetime.now() - timedelta(days=1),
+            min_value=datetime(2026, 1, 28),
             max_value=datetime.now() - timedelta(days=1),
             help="Download daily plant summary for the selected date"
         )
 
-        # Generate S3 URL
         s3_url = f"https://c21-boxen-botanical-archive.s3.eu-west-2.amazonaws.com/{selected_date.year:04d}/{selected_date.month:02d}/{selected_date.day:02d}/summary.csv"
 
-        # Download button
         st.markdown(
             f"[📊 Download {selected_date.strftime('%Y-%m-%d')} Data]({s3_url})")
         st.caption(
             "Daily summaries include avg moisture & temperature for all plants")
 
-    # Load data with loading spinner
     with st.spinner("🌱 Loading plant data..."):
         try:
             plants_df = load_plant_data()
             latest_readings = load_latest_readings()
             stats = load_summary_statistics()
 
-            # Page routing
             if page == "Overview":
                 show_overview(stats, latest_readings, plants_df)
             elif page == "Real-Time Monitoring":
@@ -193,7 +168,6 @@ def main():
                 show_historical_analysis(plants_df)
 
         except Exception as e:
-            # Show loading state on error to prevent showing error details
             st.info("🔄 Connecting to database...")
             st.caption("Waiting for database connection to be established.")
 
@@ -202,7 +176,6 @@ def show_overview(stats, latest_readings, plants_df):
     """Display overview page with key metrics."""
     st.header("📊 System Overview")
 
-    # Key metrics
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -219,14 +192,12 @@ def show_overview(stats, latest_readings, plants_df):
 
     st.markdown("---")
 
-    # Current plant health status
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("Current Plant Health Status")
 
         if not latest_readings.empty:
-            # Health categories based on moisture
             latest_readings['health_status'] = latest_readings['moisture'].apply(
                 lambda x: 'Critical' if x < 20 else (
                     'Warning' if x < 40 else 'Healthy')
@@ -268,7 +239,6 @@ def show_overview(stats, latest_readings, plants_df):
                           annotation_text="Critical Moisture")
             st.plotly_chart(fig, use_container_width=True)
 
-    # Recent readings table
     st.subheader("Recent Plant Readings")
     if not latest_readings.empty:
         display_df = latest_readings[[
@@ -276,7 +246,6 @@ def show_overview(stats, latest_readings, plants_df):
             'recording_taken', 'botanist_name'
         ]].copy()
 
-        # Add health indicator
         display_df['status'] = display_df['moisture'].apply(
             lambda x: '🔴' if x < 20 else ('🟡' if x < 40 else '🟢')
         )
@@ -292,7 +261,6 @@ def show_realtime_monitoring(latest_readings):
         st.warning("No real-time data available")
         return
 
-    # Moisture levels chart
     st.subheader("Current Moisture Levels by Plant")
     fig = px.bar(
         latest_readings.sort_values('moisture'),
@@ -309,7 +277,6 @@ def show_realtime_monitoring(latest_readings):
                   annotation_text="Critical Level")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Temperature levels chart
     st.subheader("Current Temperature Levels by Plant")
     fig = px.bar(
         latest_readings.sort_values('temperature'),
@@ -322,7 +289,6 @@ def show_realtime_monitoring(latest_readings):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # Alert section
     st.subheader("⚠️ Alerts & Warnings")
 
     critical_plants = latest_readings[latest_readings['moisture'] < 20]
@@ -361,7 +327,6 @@ def show_plant_details(plants_df, latest_readings):
         st.warning("No plants found in database")
         return
 
-    # Plant selector
     plant_names = plants_df['common_name'].tolist()
     selected_plant = st.selectbox("Select a plant", plant_names)
 
@@ -370,7 +335,6 @@ def show_plant_details(plants_df, latest_readings):
                                == selected_plant].iloc[0]
         plant_id = plant_info['plant_id']
 
-        # Display plant information
         col1, col2 = st.columns(2)
 
         with col1:
@@ -385,7 +349,6 @@ def show_plant_details(plants_df, latest_readings):
                     f"**Coordinates:** {plant_info['lat']:.4f}, {plant_info['long']:.4f}")
 
         with col2:
-            # Latest reading
             latest = latest_readings[latest_readings['plant_id'] == plant_id]
             if not latest.empty:
                 latest = latest.iloc[0]
@@ -396,7 +359,6 @@ def show_plant_details(plants_df, latest_readings):
                 st.write(f"**Recording Time:** {latest['recording_taken']}")
                 st.write(f"**Botanist:** {latest['botanist_name']}")
 
-                # Health indicator
                 if latest['moisture'] < 20:
                     st.error("🔴 Critical - Needs immediate watering!")
                 elif latest['moisture'] < 40:
@@ -404,138 +366,193 @@ def show_plant_details(plants_df, latest_readings):
                 else:
                     st.success("🟢 Healthy condition")
 
-        # Show recent history
-        st.subheader("Recent History (Last 7 Days)")
-        days_select = st.slider("Select number of days", 1, 30, 7)
-        history = load_plant_history(plant_id, days_select)
+        st.subheader("📊 Compare with Other Plants (Today's Readings)")
 
-        if not history.empty:
+        available_plants = [
+            p for p in plants_df['common_name'].tolist() if p != selected_plant]
+        selected_for_comparison = st.multiselect(
+            "Select plants to compare with " + selected_plant,
+            available_plants,
+            default=available_plants[:2] if len(
+                available_plants) >= 2 else available_plants
+        )
+
+        if selected_for_comparison:
+            comparison_plants = [selected_plant] + selected_for_comparison
+
+            plant_ids = plants_df[plants_df['common_name'].isin(
+                comparison_plants)]['plant_id'].tolist()
+
+            conn = get_db_connection()
+            query = """
+            SELECT 
+                p.common_name,
+                r.recording_taken,
+                r.moisture,
+                r.temperature
+            FROM Record r
+            INNER JOIN Plant p ON r.plant_id = p.plant_id
+            WHERE p.plant_id IN ({})
+            AND CAST(r.recording_taken AS DATE) = CAST(GETDATE() AS DATE)
+            ORDER BY r.recording_taken
+            """.format(','.join(['%s'] * len(plant_ids)))
+
+            today_df = pd.read_sql(
+                query, conn, params=tuple(plant_ids))
+
+            if not today_df.empty:
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    fig = px.line(
+                        today_df,
+                        x='recording_taken',
+                        y='moisture',
+                        color='common_name',
+                        title="Moisture Throughout Today",
+                        labels={
+                            'moisture': 'Moisture (%)', 'recording_taken': 'Time', 'common_name': 'Plant'}
+                    )
+                    fig.add_hline(y=40, line_dash="dash", line_color="orange",
+                                  annotation_text="Optimal Minimum")
+                    fig.add_hline(y=20, line_dash="dash", line_color="red",
+                                  annotation_text="Critical Level")
+                    st.plotly_chart(fig, use_container_width=True)
+
+                with col2:
+                    fig = px.line(
+                        today_df,
+                        x='recording_taken',
+                        y='temperature',
+                        color='common_name',
+                        title="Temperature Throughout Today",
+                        labels={
+                            'temperature': 'Temperature (°C)', 'recording_taken': 'Time', 'common_name': 'Plant'}
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("No readings available for today")
+
+
+def show_historical_analysis(plants_df):
+    """Display historical analysis and trends from Athena."""
+    st.header("📈 Historical Analysis")
+
+    st.info("📊 Analysing historical data from archive...")
+
+    days_back = st.slider("Days to analyse", 1, 90, 30,
+                          help="Select number of days of historical data to display")
+
+    try:
+        config = queries.get_config()
+
+        with st.spinner(f"Loading last {days_back} days of historical trends..."):
+            moisture_trends = queries.query_moisture_trends(config, days_back)
+            temp_trends = queries.query_temperature_trends(config, days_back)
+
+        if not moisture_trends.empty and not temp_trends.empty:
+            moisture_trends['date'] = pd.to_datetime(
+                moisture_trends['date'], errors='coerce')
+            moisture_trends = moisture_trends.dropna(subset=['date'])
+            moisture_trends = moisture_trends.sort_values('date')
+            moisture_trends['date_display'] = moisture_trends['date'].dt.strftime(
+                '%Y-%m-%d')
+
+            temp_trends['date'] = pd.to_datetime(
+                temp_trends['date'], errors='coerce')
+            temp_trends = temp_trends.dropna(subset=['date'])
+            temp_trends = temp_trends.sort_values('date')
+            temp_trends['date_display'] = temp_trends['date'].dt.strftime(
+                '%Y-%m-%d')
+
+            st.subheader(f"Historical Trends (Last {days_back} Days)")
+
             col1, col2 = st.columns(2)
 
             with col1:
                 fig = px.line(
-                    history,
-                    x='recording_taken',
-                    y='moisture',
-                    title="Moisture Over Time",
+                    moisture_trends,
+                    x='date_display',
+                    y='avg_moisture',
+                    title="Average Daily Moisture",
                     labels={
-                        'moisture': 'Moisture (%)', 'recording_taken': 'Date'}
+                        'avg_moisture': 'Moisture (%)', 'date_display': 'Date'},
+                    markers=True
                 )
-                fig.add_hline(y=40, line_dash="dash", line_color="orange")
-                fig.add_hline(y=20, line_dash="dash", line_color="red")
+                fig.add_hline(y=40, line_dash="dash", line_color="orange",
+                              annotation_text="Optimal Minimum")
+                fig.add_hline(y=20, line_dash="dash", line_color="red",
+                              annotation_text="Critical Level")
+                fig.update_xaxes(type='category')
                 st.plotly_chart(fig, use_container_width=True)
+
+                st.metric("Avg Moisture",
+                          f"{moisture_trends['avg_moisture'].mean():.1f}%")
+                st.metric("Min Moisture",
+                          f"{moisture_trends['min_moisture'].min():.1f}%")
+                st.metric("Max Moisture",
+                          f"{moisture_trends['max_moisture'].max():.1f}%")
 
             with col2:
                 fig = px.line(
-                    history,
-                    x='recording_taken',
-                    y='temperature',
-                    title="Temperature Over Time",
+                    temp_trends,
+                    x='date_display',
+                    y='avg_temperature',
+                    title="Average Daily Temperature",
                     labels={
-                        'temperature': 'Temperature (°C)', 'recording_taken': 'Date'}
+                        'avg_temperature': 'Temperature (°C)', 'date_display': 'Date'},
+                    markers=True
                 )
+                fig.update_xaxes(type='category')
                 st.plotly_chart(fig, use_container_width=True)
 
+                st.metric("Avg Temperature",
+                          f"{temp_trends['avg_temperature'].mean():.1f}°C")
+                st.metric("Min Temperature",
+                          f"{temp_trends['min_temperature'].min():.1f}°C")
+                st.metric("Max Temperature",
+                          f"{temp_trends['max_temperature'].max():.1f}°C")
 
-def show_historical_analysis(plants_df):
-    """Display historical analysis and trends."""
-    st.header("📈 Historical Analysis")
+        st.subheader("⚠️ Plants with Most Outliers")
+        outliers = queries.query_outlier_analysis(config)
 
-    # Date range selector
-    col1, col2 = st.columns(2)
-    with col1:
-        days_back = st.slider("Analysis Period (days)", 1, 90, 30)
-
-    conn = get_db_connection()
-
-    # Load historical data
-    query = """
-    SELECT 
-        p.plant_id,
-        p.common_name,
-        r.recording_taken,
-        r.moisture,
-        r.temperature
-    FROM Record r
-    INNER JOIN Plant p ON r.plant_id = p.plant_id
-    WHERE r.recording_taken >= DATEADD(day, -%s, GETDATE())
-    ORDER BY r.recording_taken
-    """
-
-    history_df = pd.read_sql(query, conn, params=(days_back,))
-
-    if history_df.empty:
-        st.warning("No historical data available for the selected period")
-        return
-
-    # Average trends over time
-    st.subheader("Average Conditions Over Time")
-
-    daily_avg = history_df.groupby(history_df['recording_taken'].dt.date).agg({
-        'moisture': 'mean',
-        'temperature': 'mean'
-    }).reset_index()
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        fig = px.line(
-            daily_avg,
-            x='recording_taken',
-            y='moisture',
-            title="Average Daily Moisture",
-            labels={'moisture': 'Moisture (%)', 'recording_taken': 'Date'}
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        fig = px.line(
-            daily_avg,
-            x='recording_taken',
-            y='temperature',
-            title="Average Daily Temperature",
-            labels={
-                'temperature': 'Temperature (°C)', 'recording_taken': 'Date'}
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    # Plant comparison
-    st.subheader("Plant Comparison")
-
-    selected_plants = st.multiselect(
-        "Select plants to compare",
-        plants_df['common_name'].tolist(),
-        default=plants_df['common_name'].tolist()[:3]
-    )
-
-    if selected_plants:
-        filtered_history = history_df[history_df['common_name'].isin(
-            selected_plants)]
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            fig = px.line(
-                filtered_history,
-                x='recording_taken',
-                y='moisture',
-                color='common_name',
-                title="Moisture Comparison",
-                labels={'moisture': 'Moisture (%)', 'recording_taken': 'Date'}
+        if not outliers.empty:
+            fig = px.bar(
+                outliers,
+                x='common_name',
+                y=['total_temp_outliers', 'total_moisture_outliers'],
+                title="Temperature and Moisture Outliers by Plant",
+                labels={'value': 'Number of Outliers', 'common_name': 'Plant'},
+                barmode='group'
             )
             st.plotly_chart(fig, use_container_width=True)
 
-        with col2:
-            fig = px.line(
-                filtered_history,
-                x='recording_taken',
-                y='temperature',
-                color='common_name',
-                title="Temperature Comparison",
-                labels={
-                    'temperature': 'Temperature (°C)', 'recording_taken': 'Date'}
+            st.dataframe(
+                outliers[['common_name', 'total_temp_outliers',
+                          'total_moisture_outliers', 'days_recorded']],
+                use_container_width=True,
+                hide_index=True
             )
-            st.plotly_chart(fig, use_container_width=True)
+
+        st.subheader("🔴 Critical Plants (Historical Data)")
+        critical = queries.query_critical_plants(config)
+
+        if not critical.empty:
+            st.warning(
+                f"Found {len(critical)} plants with critical moisture levels")
+            st.dataframe(
+                critical[['plant_id', 'common_name', 'avg_moisture',
+                          'avg_temperature', 'moisture_outliers']],
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.success(
+                "✅ No plants with critical moisture levels in historical data")
+
+    except Exception as e:
+        st.error(f"Error loading historical data from Athena: {str(e)}")
+        st.info("Make sure Athena is configured and the Glue crawler has run.")
 
 
 if __name__ == "__main__":
