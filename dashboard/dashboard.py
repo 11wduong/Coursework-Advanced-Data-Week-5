@@ -155,26 +155,47 @@ def main():
                 "Plant Details", "Historical Analysis"]
         )
 
-    # Load data
-    try:
-        plants_df = load_plant_data()
-        latest_readings = load_latest_readings()
-        stats = load_summary_statistics()
+        st.markdown("---")
+        st.header("📥 Download Historical Data")
 
-        # Page routing
-        if page == "Overview":
-            show_overview(stats, latest_readings, plants_df)
-        elif page == "Real-Time Monitoring":
-            show_realtime_monitoring(latest_readings)
-        elif page == "Plant Details":
-            show_plant_details(plants_df, latest_readings)
-        elif page == "Historical Analysis":
-            show_historical_analysis(plants_df)
+        # Date picker for historical data
+        selected_date = st.date_input(
+            "Select Date",
+            value=datetime.now() - timedelta(days=1),
+            max_value=datetime.now() - timedelta(days=1),
+            help="Download daily plant summary for the selected date"
+        )
 
-    except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        st.info(
-            "Please ensure the database connection is properly configured in your .env file.")
+        # Generate S3 URL
+        s3_url = f"https://c21-boxen-botanical-archive.s3.eu-west-2.amazonaws.com/{selected_date.year:04d}/{selected_date.month:02d}/{selected_date.day:02d}/summary.csv"
+
+        # Download button
+        st.markdown(
+            f"[📊 Download {selected_date.strftime('%Y-%m-%d')} Data]({s3_url})")
+        st.caption(
+            "Daily summaries include avg moisture & temperature for all plants")
+
+    # Load data with loading spinner
+    with st.spinner("🌱 Loading plant data..."):
+        try:
+            plants_df = load_plant_data()
+            latest_readings = load_latest_readings()
+            stats = load_summary_statistics()
+
+            # Page routing
+            if page == "Overview":
+                show_overview(stats, latest_readings, plants_df)
+            elif page == "Real-Time Monitoring":
+                show_realtime_monitoring(latest_readings)
+            elif page == "Plant Details":
+                show_plant_details(plants_df, latest_readings)
+            elif page == "Historical Analysis":
+                show_historical_analysis(plants_df)
+
+        except Exception as e:
+            # Show loading state on error to prevent showing error details
+            st.info("🔄 Connecting to database...")
+            st.caption("Waiting for database connection to be established.")
 
 
 def show_overview(stats, latest_readings, plants_df):
