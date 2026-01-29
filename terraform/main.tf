@@ -283,9 +283,51 @@ resource "aws_s3_bucket" "plant_archive" {
   }
 }
 
+# Allow public access to the bucket
+resource "aws_s3_bucket_public_access_block" "plant_archive_public" {
+  bucket = aws_s3_bucket.plant_archive.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+# Bucket policy for public read-only access
+resource "aws_s3_bucket_policy" "plant_archive_public_read" {
+  bucket = aws_s3_bucket.plant_archive.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.plant_archive.arn}/*"
+      },
+      {
+        Sid       = "PublicListBucket"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:ListBucket"
+        Resource  = aws_s3_bucket.plant_archive.arn
+      }
+    ]
+  })
+
+  depends_on = [aws_s3_bucket_public_access_block.plant_archive_public]
+}
+
 output "s3_bucket_name" {
   description = "S3 bucket name for plant summaries"
   value       = aws_s3_bucket.plant_archive.id
+}
+
+output "s3_bucket_url" {
+  description = "Public URL to access S3 bucket contents"
+  value       = "https://${aws_s3_bucket.plant_archive.bucket}.s3.${aws_s3_bucket.plant_archive.region}.amazonaws.com/"
 }
 
 # Glue Database
