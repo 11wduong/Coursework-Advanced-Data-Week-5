@@ -374,8 +374,9 @@ class TestGetDbConnection:
 
         mock_connect.assert_called_once()
         call_args = mock_connect.call_args[0][0]
-        assert 'DRIVER={ODBC Driver 17 for SQL Server}' in call_args
-        assert 'SERVER=localhost,1433' in call_args
+        assert 'DRIVER={ODBC Driver 18 for SQL Server}' in call_args
+        assert 'SERVER=localhost' in call_args
+        assert 'PORT=1433' in call_args
         assert 'DATABASE=testdb' in call_args
         assert 'UID=user' in call_args
         assert 'PWD=pass' in call_args
