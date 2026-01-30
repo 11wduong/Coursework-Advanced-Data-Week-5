@@ -4,7 +4,7 @@ import requests
 import pandas as pd
 
 
-def fetch_plant_data(plant_id):
+def fetch_plant_data(plant_id) -> dict:
     """Fetch plant data from the API for a given plant ID."""
     url = f"https://tools.sigmalabs.co.uk/api/plants/{plant_id}"
 
@@ -13,15 +13,16 @@ def fetch_plant_data(plant_id):
 
     if 'error' in data:
         print(f"Error fetching plant ID {plant_id}: {data['error']}")
-        return None
+        raise ValueError(f"API error for plant ID {plant_id}")
 
     return data
 
 
-def flatten_plant_data(plant_data):
+def flatten_plant_data(plant_data) -> dict:
     """Flatten nested dictionary structure for DataFrame."""
     if not plant_data:
-        return None
+        print("No plant data to flatten")
+        raise ValueError("No plant data provided")
 
     botanist = plant_data.get('botanist', {})
     origin = plant_data.get('origin_location', {})
@@ -44,21 +45,29 @@ def flatten_plant_data(plant_data):
     }
 
 
-def extract_all_plants(start_id=1, end_id=50):
-    """Extract plant data for a range of plant IDs and return as DataFrame."""
+def extract_all_plants(start_id=1, max_consecutive_errors=5) -> pd.DataFrame:
+    """Extract plant data starting from start_id until max_consecutive_errors reached."""
     all_plants = []
+    consecutive_errors = 0
+    plant_id = start_id
 
-    for plant_id in range(start_id, end_id + 1):
-        plant_data = fetch_plant_data(plant_id)
-        if plant_data:
+    while consecutive_errors < max_consecutive_errors:
+        try:
+            plant_data = fetch_plant_data(plant_id)
             flat_data = flatten_plant_data(plant_data)
-            if flat_data:
-                all_plants.append(flat_data)
+            all_plants.append(flat_data)
+            consecutive_errors = 0
+        except ValueError:
+            consecutive_errors += 1
 
+        plant_id += 1
+
+    print(
+        f"Stopped after {consecutive_errors} consecutive errors at plant_id {plant_id - consecutive_errors}")
     return pd.DataFrame(all_plants)
 
 
 if __name__ == "__main__":
-    df = extract_all_plants(1, 50)
+    df = extract_all_plants(start_id=1)
     print(f"Extracted {len(df)} plants")
     print(df.head())

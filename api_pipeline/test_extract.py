@@ -7,6 +7,7 @@ functions using mock data and responses.
 
 from unittest.mock import patch, Mock
 import pandas as pd
+import pytest
 from extract import fetch_plant_data, flatten_plant_data, extract_all_plants
 
 
@@ -38,14 +39,14 @@ def test_fetch_plant_with_error(mock_get):
     }
     mock_get.return_value = mock_response
 
-    result = fetch_plant_data(7)
-
-    assert result is None
+    import pytest
+    with pytest.raises(ValueError, match="API error for plant ID 7"):
+        fetch_plant_data(7)
 
 
 @patch('extract.requests.get')
 def test_fetch_plant_on_loan(mock_get):
-    """Test fetching a plant on loan returns None."""
+    """Test fetching a plant on loan raises ValueError."""
     mock_response = Mock()
     mock_response.json.return_value = {
         'error': 'plant on loan to another museum',
@@ -53,9 +54,9 @@ def test_fetch_plant_on_loan(mock_get):
     }
     mock_get.return_value = mock_response
 
-    result = fetch_plant_data(43)
-
-    assert result is None
+    import pytest
+    with pytest.raises(ValueError, match="API error for plant ID 43"):
+        fetch_plant_data(43)
 
 
 def test_flatten_complete_plant_data():
@@ -108,9 +109,10 @@ def test_flatten_plant_data_with_missing_fields():
 
 
 def test_flatten_none_plant_data():
-    """Test flattening None returns None."""
-    result = flatten_plant_data(None)
-    assert result is None
+    """Test flattening None raises ValueError."""
+    import pytest
+    with pytest.raises(ValueError, match="No plant data provided"):
+        flatten_plant_data(None)
 
 
 @patch('extract.fetch_plant_data')
@@ -134,10 +136,10 @@ def test_extract_multiple_plants(mock_fetch):
             'temperature': 18.0,
             'botanist': {'name': 'Jane Smith'},
             'origin_location': {'city': 'Amsterdam'}
-        }
-    ]
+        },
+    ] + [ValueError("API error")] * 5
 
-    result = extract_all_plants(1, 2)
+    result = extract_all_plants(start_id=1, max_consecutive_errors=5)
 
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 2
@@ -156,17 +158,17 @@ def test_extract_with_errors(mock_fetch):
             'botanist': {},
             'origin_location': {}
         },
-        None,
+        ValueError("API error"),
         {
             'plant_id': 3,
             'name': 'Daisy',
             'scientific_name': ['Bellis'],
             'botanist': {},
             'origin_location': {}
-        }
-    ]
+        },
+    ] + [ValueError("API error")] * 5
 
-    result = extract_all_plants(1, 3)
+    result = extract_all_plants(start_id=1, max_consecutive_errors=5)
 
     assert len(result) == 2
     assert result.iloc[0]['plant_id'] == 1
@@ -176,9 +178,9 @@ def test_extract_with_errors(mock_fetch):
 @patch('extract.fetch_plant_data')
 def test_extract_all_errors(mock_fetch):
     """Test extracting when all requests fail."""
-    mock_fetch.return_value = None
+    mock_fetch.side_effect = ValueError("API error")
 
-    result = extract_all_plants(1, 5)
+    result = extract_all_plants(start_id=1, max_consecutive_errors=5)
 
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 0
