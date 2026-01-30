@@ -273,6 +273,15 @@ resource "aws_iam_role_policy" "archive_scheduler_lambda_policy" {
   })
 }
 
+# Permission for EventBridge Scheduler to invoke Archive Lambda
+resource "aws_lambda_permission" "allow_eventbridge_archive" {
+  statement_id  = "AllowExecutionFromEventBridgeScheduler"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.archive_pipeline.function_name
+  principal     = "scheduler.amazonaws.com"
+  source_arn    = aws_scheduler_schedule.archive_schedule.arn
+}
+
 # S3 bucket for daily plant summaries
 resource "aws_s3_bucket" "plant_archive" {
   bucket = "c21-boxen-botanical-archive"
