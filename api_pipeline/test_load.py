@@ -3,7 +3,7 @@
 from unittest.mock import patch, MagicMock
 import pandas as pd
 import pytest
-from api_pipeline.load import (
+from load import (
     _build_insert_query,
     _dataframe_to_tuples,
     load_master_table,
