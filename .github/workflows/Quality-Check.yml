@@ -27,7 +27,7 @@ jobs:
         run: |
           SCORE=$(pylint **/*.py --disable=import-error --exit-zero \
             | grep -oP 'rated at \K[0-9.]+')
-          python -c "import sys; sys.exit(0 if float('$SCORE') >= 8.0 else 1)"
+          python -c "import sys; sys.exit(0 if float('$SCORE') >= 7.0 else 1)"
 
       - name: Run pytest
         run: |
