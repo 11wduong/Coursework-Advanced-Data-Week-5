@@ -491,7 +491,8 @@ resource "aws_iam_role_policy" "dashboard_athena_s3_policy" {
         Action = [
           "s3:GetObject",
           "s3:ListBucket",
-          "s3:PutObject"
+          "s3:PutObject",
+          "s3:GetBucketLocation"
         ]
         Resource = [
           "${aws_s3_bucket.plant_archive.arn}/*",
