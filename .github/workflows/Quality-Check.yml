@@ -28,6 +28,13 @@ jobs:
             | grep -oP 'rated at \K[0-9.]+')
           python -c "import sys; sys.exit(0 if float('$SCORE') >= 7.0 else 1)"
 
-      - name: Run pytest
+      - name: Run pytest (api_pipeline)
+        working-directory: api_pipeline
         run: |
-          pytest --import-mode=importlib
+          pytest
+
+      - name: Run pytest (archive_pipeline)
+        working-directory: archive_pipeline
+        run: |
+          pytest
+
