@@ -8,7 +8,7 @@ functions using mock data and responses.
 from unittest.mock import patch, Mock
 import pandas as pd
 import pytest
-from api_pipeline.extract import fetch_plant_data, flatten_plant_data, extract_all_plants
+from extract import fetch_plant_data, flatten_plant_data, extract_all_plants
 
 
 @patch('extract.requests.get')
