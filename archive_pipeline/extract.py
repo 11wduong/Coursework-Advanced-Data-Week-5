@@ -28,14 +28,14 @@ def get_db_connection():
     return conn
 
 
-def extract_table_data(conn, table_name):
+def extract_table_data(conn, table_name) -> pd.DataFrame:
     """Extract all data from a specified table."""
     query = f"SELECT * FROM {table_name}"
     df = pd.read_sql(query, conn)
     return df
 
 
-def extract_all_data(conn):
+def extract_all_data(conn) -> dict:
     """Extract data from all tables in the database."""
     tables = ['Country', 'Location', 'Plant', 'Botanist', 'Record']
 
@@ -48,7 +48,7 @@ def extract_all_data(conn):
     return data
 
 
-def main():
+def main() -> dict:
     """Main function to extract all database data."""
     print("Connecting to database...")
     conn = get_db_connection()

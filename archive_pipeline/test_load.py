@@ -35,11 +35,12 @@ def test_upload_to_s3_creates_correct_path():
 
 def test_get_s3_client_creates_client():
     """Test that get_s3_client returns a valid S3 client."""
-    with patch('load.boto3.client') as mock_boto:
-        mock_client = MagicMock()
-        mock_boto.return_value = mock_client
+    with patch('load.os.getenv', return_value='eu-west-2'):
+        with patch('load.boto3.client') as mock_boto:
+            mock_client = MagicMock()
+            mock_boto.return_value = mock_client
 
-        result = get_s3_client()
+            result = get_s3_client()
 
-        mock_boto.assert_called_once_with('s3', region_name='eu-west-2')
-        assert result == mock_client
+            mock_boto.assert_called_once_with('s3', region_name='eu-west-2')
+            assert result == mock_client
