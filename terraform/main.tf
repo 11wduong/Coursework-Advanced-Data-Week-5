@@ -503,7 +503,14 @@ resource "aws_iam_role_policy" "dashboard_athena_s3_policy" {
         Action = [
           "glue:GetDatabase",
           "glue:GetTable",
-          "glue:GetPartitions"
+          "glue:GetPartitions",
+          "glue:GetTables",
+          "glue:CreateTable",
+          "glue:UpdateTable",
+          "glue:DeleteTable",
+          "glue:BatchCreatePartition",
+          "glue:BatchDeletePartition",
+          "glue:BatchGetPartition"
         ]
         Resource = "*"
       }
@@ -632,15 +639,6 @@ resource "aws_security_group" "dashboard_sg" {
   name        = "c21-boxen-dashboard-sg"
   description = "Security group for dashboard ECS task"
   vpc_id      = "vpc-00e544d2dfe3f7848"
-
-  # Allow outbound HTTPS to reach ECR and other AWS services
-  egress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow HTTPS outbound for ECR, Athena, etc."
-  }
 
   # Allow all outbound traffic (for database connection, etc.)
   egress {
