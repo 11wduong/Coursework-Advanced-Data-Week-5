@@ -1,5 +1,4 @@
 name: Quality Check
-
 on:
   push:
   pull_request:
