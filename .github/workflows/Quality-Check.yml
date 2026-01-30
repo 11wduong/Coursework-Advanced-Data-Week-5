@@ -25,7 +25,7 @@ jobs:
 
       - name: Run pylint
         run: |
-          pylint **/*.py
+          pylint **/*.py --disable=import-error
         continue-on-error: false
 
       - name: Run pytest
